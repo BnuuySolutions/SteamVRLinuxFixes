@@ -14,7 +14,6 @@ struct DeviceDispatch {
   PFN_vkGetDeviceQueue GetDeviceQueue = nullptr;
   PFN_vkQueuePresentKHR QueuePresentKHR = nullptr;
   PFN_vkWaitForPresentKHR WaitForPresentKHR = nullptr;
-  PFN_vkGetQueryPoolResults GetQueryPoolResults = nullptr;
   PFN_vkCreateSwapchainKHR CreateSwapchainKHR = nullptr;
   PFN_vkCreateImage CreateImage = nullptr;
   float timestampPeriod = 1.0f;

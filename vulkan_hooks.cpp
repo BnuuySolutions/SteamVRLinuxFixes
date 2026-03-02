@@ -193,7 +193,6 @@ VKAPI_ATTR VkResult VKAPI_CALL Hook_vkCreateDevice(VkPhysicalDevice physicalDevi
     dispatch.GetDeviceQueue = (PFN_vkGetDeviceQueue)next_gdpa(*pDevice, "vkGetDeviceQueue");
     dispatch.WaitForPresentKHR = (PFN_vkWaitForPresentKHR)next_gdpa(*pDevice, "vkWaitForPresentKHR");
     dispatch.QueuePresentKHR = (PFN_vkQueuePresentKHR)next_gdpa(*pDevice, "vkQueuePresentKHR");
-    dispatch.GetQueryPoolResults = (PFN_vkGetQueryPoolResults)next_gdpa(*pDevice, "vkGetQueryPoolResults");
     dispatch.CreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)next_gdpa(*pDevice, "vkCreateSwapchainKHR");
     dispatch.CreateImage = (PFN_vkCreateImage)next_gdpa(*pDevice, "vkCreateImage");
   }
