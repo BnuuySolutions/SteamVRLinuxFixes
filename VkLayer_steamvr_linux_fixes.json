@@ -6,6 +6,9 @@
         "library_path": "./libsteamvr_linux_fixes.so",
         "api_version": "1.3.200",
         "implementation_version": "1",
-        "description": "Fixes SteamVR's WaitForPendingPresent implementation and other various issues on Linux."
+        "description": "Fixes SteamVR's WaitForPendingPresent implementation and other various issues on Linux.",
+        "disable_environment": {
+            "DISABLE_STEAMVR_LINUX_FIXES": "Disable the SteamVR Linux Fixes layer"
+        }
     }
 }
