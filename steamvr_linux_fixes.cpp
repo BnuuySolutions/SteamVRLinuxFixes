@@ -1,5 +1,6 @@
 #include "steamvr_linux_fixes.hpp"
 #include "vulkan_hooks.hpp"
+#include "vrcompositor_patches.hpp"
 
 #include <cstring>
 
@@ -100,10 +101,17 @@ LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, 
 }
 
 LAYER_EXPORT VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface* pVersionStruct) {
+  if (!PatchCreateDirectModeSurface())
+    return VK_ERROR_INITIALIZATION_FAILED;
+  
+  if (!InstallFunchook())
+    return VK_ERROR_INITIALIZATION_FAILED;
+
   if (pVersionStruct->loaderLayerInterfaceVersion >= 2) {
     pVersionStruct->pfnGetInstanceProcAddr = Hook_vkGetInstanceProcAddr;
     pVersionStruct->pfnGetDeviceProcAddr = Hook_vkGetDeviceProcAddr;
     pVersionStruct->pfnGetPhysicalDeviceProcAddr = nullptr;
   }
+
   return VK_SUCCESS;
 }

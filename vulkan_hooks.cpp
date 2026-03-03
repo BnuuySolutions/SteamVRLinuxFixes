@@ -1,6 +1,5 @@
 #include "vulkan_hooks.hpp"
 #include "steamvr_linux_fixes.hpp"
-#include "vrcompositor_patches.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -38,9 +37,6 @@ VKAPI_ATTR VkResult VKAPI_CALL Hook_vkCreateInstance(const VkInstanceCreateInfo*
   if (result == VK_SUCCESS) {
     std::lock_guard<std::mutex> lock(g_mapMutex);
     g_next_gipa[*pInstance] = next_gipa;
-
-    InstallFunchook();
-    PatchCreateDirectModeSurface();
 
     PFN_vkEnumeratePhysicalDevices enumPd =
         (PFN_vkEnumeratePhysicalDevices)next_gipa(*pInstance, "vkEnumeratePhysicalDevices");

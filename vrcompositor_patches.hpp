@@ -1,5 +1,5 @@
 #pragma once
 
-void InstallFunchook();
+bool InstallFunchook();
 
-void PatchCreateDirectModeSurface();
+bool PatchCreateDirectModeSurface();

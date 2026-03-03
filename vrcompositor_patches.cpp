@@ -15,6 +15,7 @@
 typedef void (*WaitForPendingPresent_t)(void* _this, int param_2);
 static WaitForPendingPresent_t g_orig_WaitForPendingPresent = nullptr;
 static bool g_funchookInstalled = false;
+static bool g_patchInstalled = false;
 
 void Hook_WaitForPendingPresent(void* _this, int param_2) {
   // Extract the VkDevice from the CHmdWindowSDL object at offset 0xf8
@@ -121,9 +122,10 @@ void* FindLocalSymbol(const std::string& symbol_name) {
   return final_address;
 }
 
-void InstallFunchook() {
+bool InstallFunchook() {
   if (g_funchookInstalled)
-    return;
+    return true;
+
   g_funchookInstalled = true;
 
   const std::string targetSymbol =
@@ -131,15 +133,11 @@ void InstallFunchook() {
 
   void* target_func = FindLocalSymbol(targetSymbol);
 
-  if (target_func) {
-    std::cerr << "Found symbol " << targetSymbol << " at " << target_func << std::endl;
-  } else {
-    std::cerr << "Symbol lookup failed. Exiting..." << std::endl;
-
-    exit(-60037);
+  if (!target_func) {
+    return false;
   }
 
-  std::cerr << "Target function resolved to: " << target_func << std::endl;
+  std::cerr << "Found symbol " << targetSymbol << " at " << target_func << std::endl;
 
   g_orig_WaitForPendingPresent = (WaitForPendingPresent_t)target_func;
   funchook_t* fhook = funchook_create();
@@ -148,27 +146,33 @@ void InstallFunchook() {
   if (rv != 0) {
     std::cerr << "funchook_prepare failed: " << funchook_error_message(fhook) << std::endl;
     funchook_destroy(fhook);
-    return;
+    return false;
   }
 
   rv = funchook_install(fhook, 0);
   if (rv != 0) {
     std::cerr << "funchook_install failed: " << funchook_error_message(fhook) << std::endl;
     funchook_destroy(fhook);
-    return;
+    return false;
   }
 
   std::cerr << "Success! WaitForPendingPresent hooked via funchook." << std::endl;
+
+  return true;
 }
 
-void PatchCreateDirectModeSurface() {
+bool PatchCreateDirectModeSurface() {
+  if (g_patchInstalled)
+    return true;
+
+  g_patchInstalled = true;
+
   const std::string targetSymbol =
       "_ZN2vr13CHmdWindowSDL23CreateDirectModeSurfaceEjjfPP14VkSurfaceKHR_TPP14VkDisplayKHR_T";
   uint8_t* funcStart = (uint8_t*)FindLocalSymbol(targetSymbol);
 
   if (!funcStart) {
-    std::cerr << "Patch skipped: Could not find symbol " << targetSymbol << std::endl;
-    return;
+    return false;
   }
 
   // Pattern: 0F 84 72 05 00 00 (JE +0x572)
@@ -189,16 +193,17 @@ void PatchCreateDirectModeSurface() {
       // boundary
       if (mprotect((void*)pageStart, pageSize * 2, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
         perror("mprotect failed");
-        return;
+        return false;
       }
 
       memcpy(patchLoc, patch, sizeof(patch));
       std::cerr << "Patch applied to CreateDirectModeSurface "
                    "mode selection."
                 << std::endl;
-      return;
+      return false;
     }
   }
   
   std::cerr << "Patch failed: Pattern not found within " << scanLimit << " bytes." << std::endl;
+  return false;
 }
