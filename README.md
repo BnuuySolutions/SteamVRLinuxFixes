@@ -17,12 +17,15 @@ A Vulkan layer that patches SteamVR's vrcompositor to address issues for wired h
 
 ## How to use
 
-Building this layer is recommended to avoid any possible ABI issues that could occur when using the built release. This layer has fairly minimal library dependencies (mostly Vulkan and glibc), but I cannot guarantee it will work for all distributions.
-If you want to use binaries, go to the releases section and extract the contents to a folder. Then, you can skip to step 4.
+If you are on Arch, you can skip all of this and just install [steamvr-linux-fixes-layer-bin](https://aur.archlinux.org/packages/steamvr-linux-fixes-layer-bin) from AUR.
 
-You will have to repeat step 4 any time SteamVR updates.
+If you want to use the release binaries, go to the releases section and extract the contents to a folder. Then, you can skip to step 4. If the release binaries do not work after checking that it cannot load or you are using a distro that doesn't use glibc (which SteamVR probably can't run on?), you can try building from source.
 
-1. Make sure you have vulkan headers and CMake. On Arch based distros, you can install [vulkan-headers](https://archlinux.org/packages/extra/any/vulkan-headers/) and [cmake](https://archlinux.org/packages/extra/x86_64/cmake/) from AUR.
+Also if you are using the release directly or building from source, you will have to repeat step 4 any time SteamVR updates. You **do not** need to do any of these steps if you installed from AUR.
+
+## Building from source and installing
+
+1. Make sure you have vulkan headers and CMake.
 2. Clone this respository recursively with `git clone --recursive https://github.com/BnuuySolutions/SteamVRLinuxFixes/`
 3. Go into the repository directory and build with cmake using `mkdir build && cd build && cmake .. && cmake --build .`
 4. Edit `~/.steam/steam/steamapps/common/SteamVR/bin/linux64/vrcompositor-launcher.sh` and add these two lines after `export SDL_VIDEODRIVER=x11`, which is towards the bottom of the script.
