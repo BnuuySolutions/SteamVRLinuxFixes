@@ -122,22 +122,72 @@ void* FindLocalSymbol(const std::string& symbol_name) {
   return final_address;
 }
 
+struct PatternMatch {
+  const uint8_t* pattern;
+  size_t length;
+  void* match;
+};
+
+static int PatternMatchCallback(struct dl_phdr_info* info, size_t size, void* data) {
+  // The main executable usually has an empty string for its name,
+  // but we can also explicitly check for "vrcompositor" just to be safe.
+  if (info->dlpi_name[0] != '\0' && !strstr(info->dlpi_name, "vrcompositor")) {
+    return 0; // Skip other libraries
+  }
+
+  PatternMatch* pm = reinterpret_cast<PatternMatch*>(data);
+
+  for (int i = 0; i < info->dlpi_phnum; ++i) {
+    // Only scan executable segments
+    if (info->dlpi_phdr[i].p_type == PT_LOAD && (info->dlpi_phdr[i].p_flags & PF_X)) {
+      uint8_t* start = (uint8_t*)(info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+      size_t len = info->dlpi_phdr[i].p_memsz;
+
+      if (len < pm->length) continue;
+
+      for (size_t j = 0; j <= len - pm->length; ++j) {
+        if (memcmp(start + j, pm->pattern, pm->length) == 0) {
+          pm->match = start + j;
+          return 1; // Found, stop iterating
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+void* FindPattern(const uint8_t* pattern, size_t length) {
+  PatternMatch pm = {pattern, length, nullptr};
+  dl_iterate_phdr(PatternMatchCallback, &pm);
+  return pm.match;
+}
+
 bool InstallFunchook() {
   if (g_funchookInstalled)
     return true;
 
   g_funchookInstalled = true;
 
-  const std::string targetSymbol =
-      "_ZN2vr13CHmdWindowSDL21WaitForPendingPresentENS_10IHmdWindow11EWindowTypeE";
+  void* target_func = nullptr;
 
-  void* target_func = FindLocalSymbol(targetSymbol);
+  const uint8_t pattern[] = {0x48, 0xba, 0xcf, 0xf7, 0x53, 0xe3, 0xa5, 0x9b, 0xc4, 0x20};
+  void* match = FindPattern(pattern, sizeof(pattern));
+
+  if (match) {
+    target_func = (void*)((uintptr_t)match - 0xc9);
+    std::cerr << "Found WaitForPendingPresent via pattern at " << target_func << std::endl;
+  } else {
+    const std::string targetSymbol =
+        "_ZN2vr13CHmdWindowSDL21WaitForPendingPresentENS_10IHmdWindow11EWindowTypeE";
+    target_func = FindLocalSymbol(targetSymbol);
+    if (target_func) {
+      std::cerr << "Found WaitForPendingPresent via symbol at " << target_func << std::endl;
+    }
+  }
 
   if (!target_func) {
     return false;
   }
-
-  std::cerr << "Found symbol " << targetSymbol << " at " << target_func << std::endl;
 
   g_orig_WaitForPendingPresent = (WaitForPendingPresent_t)target_func;
   funchook_t* fhook = funchook_create();
@@ -167,43 +217,63 @@ bool PatchCreateDirectModeSurface() {
 
   g_patchInstalled = true;
 
+  // Pattern: 0f 84 72 05 00 00 f3 0f 10 9d fc fe ff ff
+  const uint8_t pattern[] = {0x0F, 0x84, 0x72, 0x05, 0x00, 0x00, 0xF3, 0x0F, 0x10, 0x9D, 0xFC, 0xFE, 0xFF, 0xFF};
+  // Patch:   0F 84 0D 00 00 00 f3 0f 10 9d fc fe ff ff
+  const uint8_t patch[] = {0x0F, 0x84, 0x0D, 0x00, 0x00, 0x00, 0xF3, 0x0F, 0x10, 0x9D, 0xFC, 0xFE, 0xFF, 0xFF};
+
+  uint8_t* patchLoc = nullptr;
+
   const std::string targetSymbol =
       "_ZN2vr13CHmdWindowSDL23CreateDirectModeSurfaceEjjfPP14VkSurfaceKHR_TPP14VkDisplayKHR_T";
   uint8_t* funcStart = (uint8_t*)FindLocalSymbol(targetSymbol);
 
-  if (!funcStart) {
+  if (funcStart) {
+    const size_t scanLimit = 1024;
+    for (size_t i = 0; i < scanLimit; i++) {
+      if (memcmp(funcStart + i, pattern, sizeof(pattern)) == 0) {
+        patchLoc = funcStart + i;
+        std::cerr << "Found CreateDirectModeSurface patch pattern at offset " << i << "." << std::endl;
+        break;
+      }
+    }
+  }
+
+  if (!patchLoc) {
+    patchLoc = (uint8_t*)FindPattern(pattern, sizeof(pattern));
+  }
+
+  if (!patchLoc) {
     return false;
   }
 
-  // Pattern: 0F 84 72 05 00 00 (JE +0x572)
-  const uint8_t pattern[] = {0x0F, 0x84, 0x72, 0x05, 0x00, 0x00};
-  // Patch:   0F 84 0D 00 00 00 (JE +0x0D)
-  const uint8_t patch[] = {0x0F, 0x84, 0x0D, 0x00, 0x00, 0x00};
-  const size_t scanLimit = 1024;
+  uintptr_t pageSize = sysconf(_SC_PAGESIZE);
+  uintptr_t pageStart = (uintptr_t)patchLoc & ~(pageSize - 1);
 
-  for (size_t i = 0; i < scanLimit; i++) {
-    if (memcmp(funcStart + i, pattern, sizeof(pattern)) == 0) {
-      uint8_t* patchLoc = funcStart + i;
-      std::cerr << "Found patch pattern at offset " << i << ". Applying patch..." << std::endl;
-
-      uintptr_t pageSize = sysconf(_SC_PAGESIZE);
-      uintptr_t pageStart = (uintptr_t)patchLoc & ~(pageSize - 1);
-
-      // Protect 2 pages just in case the instruction straddles a page
-      // boundary
-      if (mprotect((void*)pageStart, pageSize * 2, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
-        perror("mprotect failed");
-        return false;
-      }
-
-      memcpy(patchLoc, patch, sizeof(patch));
-      std::cerr << "Patch applied to CreateDirectModeSurface "
-                   "mode selection."
-                << std::endl;
-      return true;
-    }
+  // Protect 2 pages just in case the instruction straddles a page
+  // boundary
+  if (mprotect((void*)pageStart, pageSize * 2, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+    perror("mprotect failed");
+    return false;
   }
-  
-  std::cerr << "Patch failed: Pattern not found within " << scanLimit << " bytes." << std::endl;
+
+  memcpy(patchLoc, patch, sizeof(patch));
+  std::cerr << "Patch applied to CreateDirectModeSurface "
+               "mode selection."
+            << std::endl;
+  return true;
+}
+
+bool IsVrCompositor() {
+  // Check if the current process has "vrcompositor" at the end of the path
+  char path[1024];
+  memset(path, 0, sizeof(path));
+  if (readlink("/proc/self/exe", path, sizeof(path) - 1) <= 0)
+    return false;
+
+  char* filename = strrchr(path, '/');
+  if (filename) {
+    return (strcmp(filename + 1, "vrcompositor") == 0);
+  }
   return false;
 }

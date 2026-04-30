@@ -119,6 +119,10 @@ LAYER_EXPORT VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegoti
 }
 
 __attribute__((constructor)) static void init() {
+  // Check if the process is named vrcompositor
+  if (!IsVrCompositor())
+    return;
+
   // These also double as a litmus test to know if we were loaded by vrcompositor.
   // If the symbols aren't found, we'll just skip applying the other fixes.
 

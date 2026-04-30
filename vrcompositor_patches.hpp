@@ -3,3 +3,5 @@
 bool InstallFunchook();
 
 bool PatchCreateDirectModeSurface();
+
+bool IsVrCompositor();
