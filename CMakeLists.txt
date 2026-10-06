@@ -13,7 +13,11 @@ find_package(Vulkan REQUIRED)
 set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(FUNCHOOK_INSTALL OFF CACHE BOOL "Install Funchook" FORCE)
+set(FUNCHOOK_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 add_subdirectory(funchook)
+
+add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-Wa,--noexecstack>)
+add_link_options(-Wl,-z,noexecstack)
 
 add_library(steamvr_linux_fixes SHARED steamvr_linux_fixes.cpp vulkan_hooks.cpp vrcompositor_patches.cpp)
 
