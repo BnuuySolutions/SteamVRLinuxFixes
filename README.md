@@ -19,9 +19,9 @@ A Vulkan layer that patches SteamVR's vrcompositor to address issues for wired h
 
 If you are on Arch, you can just install [steamvr-linux-fixes-layer-bin](https://aur.archlinux.org/packages/steamvr-linux-fixes-layer-bin) from AUR.
 
-If you are using the pre-built release binaries, download and extract the release archive, then run `sudo ./install.sh` to install it (or `sudo ./install.sh --uninstall` to remove it).
+If you are using the pre-built release binaries, download and extract the release archive, then run `./install.sh` to install it for your user in `~/.local` (or `sudo ./install.sh` to install system-wide in `/usr`). To remove it, run `./install.sh --uninstall` (or `sudo ./install.sh --uninstall` if installed system-wide).
 
-If you are building from source, you can install it system-wide using CMake as an implicit Vulkan layer (see below).
+If you are building from source, you can install it using CMake as an implicit Vulkan layer (see below).
 
 ## Building from source and installing
 
@@ -29,8 +29,8 @@ If you are building from source, you can install it system-wide using CMake as a
 2. Clone this repository recursively with `git clone --recursive https://github.com/BnuuySolutions/SteamVRLinuxFixes/`
 3. Go into the repository directory, build, and install with CMake:
    ```bash
-   cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+   cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/.local
    cmake --build build
-   sudo cmake --install build
+   cmake --install build
    ```
 4. Launch SteamVR and confirm the layer is logging stuff by looking at `~/.steam/steam/logs/vrcompositor-linux.txt` or `~/.steam/steam/logs/vrstartup-linux.txt`. SteamVR should now be at least slightly better than how it was before.

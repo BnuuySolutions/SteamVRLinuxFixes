@@ -4,7 +4,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DESTDIR="${DESTDIR:-}"
-PREFIX="${PREFIX:-/usr}"
+if [ -z "${PREFIX:-}" ]; then
+    if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+        PREFIX="/usr"
+    else
+        PREFIX="$HOME/.local"
+    fi
+fi
 
 LIB_DIR="${DESTDIR}${PREFIX}/lib"
 LAYER_DIR="${DESTDIR}${PREFIX}/share/vulkan/implicit_layer.d"
