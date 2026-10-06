@@ -3,6 +3,11 @@
 #include "vrcompositor_patches.hpp"
 
 #include <cstring>
+#include <iostream>
+
+#ifndef GIT_COMMIT_HASH
+#define GIT_COMMIT_HASH "unknown"
+#endif
 
 #define LAYER_EXPORT extern "C" __attribute__((visibility("default"))) VKAPI_ATTR
 
@@ -122,6 +127,8 @@ __attribute__((constructor)) static void init() {
   // Check if the process is named vrcompositor
   if (!IsVrCompositor())
     return;
+
+  std::cerr << "SteamVR Linux Fixes commit: " << GIT_COMMIT_HASH << std::endl;
 
   // These also double as a litmus test to know if we were loaded by vrcompositor.
   // If the symbols aren't found, we'll just skip applying the other fixes.

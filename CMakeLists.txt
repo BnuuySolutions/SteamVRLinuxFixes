@@ -21,6 +21,27 @@ target_include_directories(steamvr_linux_fixes PRIVATE ${Vulkan_INCLUDE_DIRS} fu
 
 target_link_libraries(steamvr_linux_fixes PRIVATE Vulkan::Vulkan funchook-static)
 
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE GIT_RESULT
+        ERROR_QUIET
+    )
+    if(NOT GIT_RESULT EQUAL 0 OR NOT GIT_COMMIT_HASH)
+        set(GIT_COMMIT_HASH "unknown")
+    endif()
+else()
+    set(GIT_COMMIT_HASH "unknown")
+endif()
+
+target_compile_definitions(steamvr_linux_fixes PRIVATE
+    GIT_COMMIT_HASH="${GIT_COMMIT_HASH}"
+)
+
 set_target_properties(steamvr_linux_fixes PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VkLayer_steamvr_linux_fixes.json")
